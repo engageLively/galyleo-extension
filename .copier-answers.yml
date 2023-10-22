@@ -1,0 +1,15 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_commit: v4.2.2
+_src_path: https://github.com/jupyterlab/extension-template
+author_email: rick.mcgeer@engageLively.com
+author_name: Rick McGeer
+has_binder: true
+has_settings: true
+kind: frontend
+labextension_name: galyleo-extension
+project_short_description: An interface between JupyterLab and the Galyleo Dashboard
+    Studio
+python_name: galyleo_extension
+repository: https://github.com/engageLively/galyleo-extension
+test: true
+
