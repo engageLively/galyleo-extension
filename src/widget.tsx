@@ -18,11 +18,14 @@ import { DocumentRegistry, DocumentWidget } from '@jupyterlab/docregistry';
 
 import { IFrame } from '@jupyterlab/apputils';
 
+// import { SandboxExceptions } from '@jupyterlab/ui-components';
+
 import { Message } from '@lumino/messaging';
 
 import { Signal } from '@lumino/signaling';
 
 import { GalyleoDocModel } from './model';
+
 
 declare type StudioHandler =
   | 'galyleo:writeFile'
@@ -61,11 +64,14 @@ export class GalyleoPanel extends IFrame {
    */
   
   constructor(context: DocumentRegistry.IContext<GalyleoDocModel>) {
-    super();
+    super({
+        sandbox: ['allow-scripts', 'allow-popups', 'allow-modals', 'allow-storage-access-by-user-activation']
+    });
+    this._initMessageListeners();
 
-    this.url = 'https://galyleo.app/studio-en/index.html'
+    
     this._iframe = this.node.querySelector('iframe')!
-
+    this._iframe.src = 'https://galyleo.app/studio-en/index.html?inJupyterLab=true'
     this._model = context.model;
     this._clients = new Map<string, HTMLElement>();
 
@@ -80,6 +86,8 @@ export class GalyleoPanel extends IFrame {
 
     
   }
+
+  
 
   /**
    * Dispose of the resources held by the widget.
@@ -148,9 +156,9 @@ export class GalyleoPanel extends IFrame {
         const dashboardStruct: string =
           doc.content.model.sharedModel.getSource();
         doc.content.loadDashboard(dashboardStruct); */
-        const jsonObject = this._model.content;
+        const jsonString = this._model.content;
         this._iframe.contentWindow?.postMessage(
-          { method: 'galyleo:load', jsonObject},
+          { method: 'galyleo:load', jsonString},
           '*'
         );
       },
@@ -228,6 +236,11 @@ export class GalyleoPanel extends IFrame {
    * to changes on shared model's content.
    */
   private _onContentChanged = (): void => {
+    const jsonString = this._model.content;
+    this._iframe.contentWindow?.postMessage(
+        { method: 'galyleo:load', jsonString},
+        '*'
+    );
     
   };
 
@@ -275,4 +288,5 @@ export class GalyleoPanel extends IFrame {
   private _iframe: HTMLIFrameElement; 
   private _clients: Map<string, HTMLElement>;
   private _model: GalyleoDocModel;
+  
 }
