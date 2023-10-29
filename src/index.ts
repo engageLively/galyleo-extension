@@ -21,7 +21,7 @@ const FACTORY = 'Galyleo editor';
 
 // Export a token so other extensions can require it
 export const IGalyleoDocTracker = new Token<IWidgetTracker<GalyleoDocWidget>>(
-  'exampleDocTracker'
+  'galyleoDocTracker'
 );
 
 /**
@@ -29,8 +29,7 @@ export const IGalyleoDocTracker = new Token<IWidgetTracker<GalyleoDocWidget>>(
  */
 const extension: JupyterFrontEndPlugin<void> = {
   id: 'documents',
-  description:
-    'Minimal JupyterLab extension for a collaborative document widget.',
+  description: 'JupyterLab extension for a Galyleo dashboard widget.',
   autoStart: true,
   requires: [ILayoutRestorer],
   optional: [ICollaborativeDrive],

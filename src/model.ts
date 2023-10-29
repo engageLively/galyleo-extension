@@ -17,7 +17,6 @@ export type SharedObject = {
   content: string;
 };
 
-
 /**
  * DocumentModel: this Model represents the content of the file
  */
@@ -134,8 +133,6 @@ export class GalyleoDocModel implements DocumentRegistry.IModel {
     this.sharedModel.set('content', v);
   }
 
-
-
   /**
    * get the signal clientChanged to listen for changes on the clients sharing
    * the same document.
@@ -201,8 +198,12 @@ export class GalyleoDocModel implements DocumentRegistry.IModel {
       y: pos?.y ?? 10,
       content: this.sharedModel.get('content') ?? ''
     }; */
-    const obj = this.sharedModel.get('content') ?? ''
-    return JSON.stringify(obj, null, 2);
+    const obj = this.sharedModel.get('content') ?? {};
+    if (typeof obj === 'string') {
+      return obj;
+    } else {
+      return JSON.stringify(obj, null, 2);
+    }
   }
 
   /**

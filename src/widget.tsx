@@ -26,13 +26,22 @@ import { Signal } from '@lumino/signaling';
 
 import { GalyleoDocModel } from './model';
 
-
 declare type StudioHandler =
   | 'galyleo:writeFile'
   | 'galyleo:setDirty'
   | 'galyleo:ready'
   | 'galyleo:requestSave';
 
+/**
+ * Convert an object to JSON if required
+ */
+const _getJSONForm = (jsonFormOrObject: any): string => {
+  if (typeof jsonFormOrObject === 'string') {
+    return jsonFormOrObject;
+  } else {
+    return JSON.stringify(jsonFormOrObject);
+  }
+};
 /**
  * DocumentWidget: widget that represents the view or editor for a file type.
  */
@@ -62,16 +71,20 @@ export class GalyleoPanel extends IFrame {
    *
    * @param context - The documents context.
    */
-  
+
   constructor(context: DocumentRegistry.IContext<GalyleoDocModel>) {
     super({
-        sandbox: ['allow-scripts', 'allow-popups', 'allow-modals', 'allow-storage-access-by-user-activation']
+      sandbox: [
+        'allow-scripts',
+        'allow-popups',
+        'allow-modals',
+        'allow-storage-access-by-user-activation'
+      ]
     });
     this._initMessageListeners();
-
-    
-    this._iframe = this.node.querySelector('iframe')!
-    this._iframe.src = 'https://galyleo.app/studio-en/index.html?inJupyterLab=true'
+    this._iframe = this.node.querySelector('iframe')!;
+    this._iframe.src =
+      'https://galyleo.app/studio-en/index.html?inJupyterLab=true';
     this._model = context.model;
     this._clients = new Map<string, HTMLElement>();
 
@@ -83,12 +96,7 @@ export class GalyleoPanel extends IFrame {
 
       this.update();
     });
-
-    
   }
-
-  
-
   /**
    * Dispose of the resources held by the widget.
    */
@@ -133,20 +141,27 @@ export class GalyleoPanel extends IFrame {
     // get a hold of the tracker and dispatch to the different widgets
     const handlers = {
       'galyleo:writeFile': (evt: MessageEvent) => {
-       /* const doc: GalyleoDoc = this._getDocumentForFilePath(
+        /* const doc: GalyleoDoc = this._getDocumentForFilePath(
           evt.data.dashboardFilePath
         ); */
         /* doc.context.model.value.text = evt.data.jsonString;
         doc.content.completeSave(); // signal that save can be finalized */
         // doc.content = evt.data.jsonString;
-        this._model.content = evt.data.jsonString;
+        this._model.content = _getJSONForm(evt.data.jsonString);
       },
       'galyleo:setDirty': (evt: MessageEvent) => {
         /* const doc: GalyleoDocument = this._getDocumentForFilePath(
           evt.data.dashboardFilePath
         ); */
-        // doc.context.model.dirty = evt.data.dirty;
-
+        /* this is a HACK and needs to get changed.  Left in for compatibility
+        with pre-4.0.  What should happen is that the dirty message should
+        have the dashboard content in it.  I need to change studio for that,
+        and will, but for now what we'll do is send another message back requesting
+        the content.  and we'll get a writeFile message in return */
+        this._iframe.contentWindow?.postMessage(
+          { method: 'galyleo:save', path: 'foo' },
+          '*'
+        );
       },
       'galyleo:ready': (evt: MessageEvent) => {
         /* const doc: GalyleoDocument = this._getDocumentForFilePath(
@@ -156,9 +171,9 @@ export class GalyleoPanel extends IFrame {
         const dashboardStruct: string =
           doc.content.model.sharedModel.getSource();
         doc.content.loadDashboard(dashboardStruct); */
-        const jsonString = this._model.content;
+        const jsonString = _getJSONForm(this._model.content);
         this._iframe.contentWindow?.postMessage(
-          { method: 'galyleo:load', jsonString},
+          { method: 'galyleo:load', jsonString: jsonString },
           '*'
         );
       },
@@ -236,12 +251,11 @@ export class GalyleoPanel extends IFrame {
    * to changes on shared model's content.
    */
   private _onContentChanged = (): void => {
-    const jsonString = this._model.content;
+    const jsonString = _getJSONForm(this._model.content);
     this._iframe.contentWindow?.postMessage(
-        { method: 'galyleo:load', jsonString},
-        '*'
+      { method: 'galyleo:load', jsonString: jsonString },
+      '*'
     );
-    
   };
 
   /**
@@ -285,8 +299,7 @@ export class GalyleoPanel extends IFrame {
   /* private _isDown: boolean;
   private _offset: Position;
   private _cube: HTMLElement; */
-  private _iframe: HTMLIFrameElement; 
+  private _iframe: HTMLIFrameElement;
   private _clients: Map<string, HTMLElement>;
   private _model: GalyleoDocModel;
-  
 }
