@@ -3,3 +3,12 @@ conda create -n jupyterlab-ext --override-channels --strict-channel-priority -c 
 conda activate jupyterlab-ext
 pip install -ve .
 The extension will be installed as galyleo_extension.  Uninstall to refresh
+
+Build the extension for development
+jlpm install 
+jlpm run clean
+jlpm run build
+
+Build the extension for deployment
+python -m build -s # builds the extension in the dist directory as a .tar.gz
+python -m build # builds the .whl
