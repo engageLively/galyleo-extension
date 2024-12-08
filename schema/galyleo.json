@@ -1,0 +1,27 @@
+
+{
+  "title": "Galyleo Settings",
+  "description": "Settings of the settings example.",
+  "jupyter.lab.menus": {
+    "main": [
+      {
+        "id": "jp-mainmenu-galyleo-settings",
+        "label": "Galyleo",
+        "rank": 80,
+        "items": [
+        ]
+      }
+    ]
+  },
+  "properties": {
+    "url": {
+      "type": "string",
+      "title": "URL",
+      "description": "URL for the Galyleo Studio",
+      "default": "https://galyleo.app"
+    }
+    
+  },
+  "additionalProperties": false,
+  "type": "object"
+}

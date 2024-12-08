@@ -26,6 +26,8 @@ import { Signal } from '@lumino/signaling';
 
 import { GalyleoDocModel } from './model';
 
+import { GALYLEO_URL } from './index';
+
 declare type StudioHandler =
   | 'galyleo:writeFile'
   | 'galyleo:setDirty'
@@ -83,8 +85,7 @@ export class GalyleoPanel extends IFrame {
     });
     this._initMessageListeners();
     this._iframe = this.node.querySelector('iframe')!;
-    this._iframe.src =
-      'https://galyleo.app/studio-en/index.html?inJupyterLab=true';
+    this._iframe.src = `${GALYLEO_URL}/studio-en/index.html?inJupyterLab=true`;
     this._model = context.model;
     this._clients = new Map<string, HTMLElement>();
 
@@ -194,6 +195,19 @@ export class GalyleoPanel extends IFrame {
   }
 
   /**
+   * Instruct the editor to load a GalyleoTable.
+   * @param table : the GalyleoTable to to load (JSON structure)
+   */
+
+  loadTable(table: any): void {
+    // table is a dictionary, how do we say that?
+    this._iframe.contentWindow?.postMessage(
+      { method: 'galyleo:loadTable', table },
+      '*'
+    );
+  }
+
+  /**
    * Handle event messages sent to the widget.
    *
    * @param event Event on the widget
@@ -251,11 +265,11 @@ export class GalyleoPanel extends IFrame {
    * to changes on shared model's content.
    */
   private _onContentChanged = (): void => {
-    const jsonString = _getJSONForm(this._model.content);
-    this._iframe.contentWindow?.postMessage(
-      { method: 'galyleo:load', jsonString: jsonString },
-      '*'
-    );
+    // const jsonString = _getJSONForm(this._model.content);
+    // this._iframe.contentWindow?.postMessage(
+    // { method: 'galyleo:load', jsonString: jsonString },
+    //  '*'
+    // );
   };
 
   /**

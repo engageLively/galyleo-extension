@@ -1,5 +1,5 @@
 {
-  "name": "galyleo-extension-ui-tests",
+  "name": "galyleo",
   "version": "1.0.0",
   "description": "JupyterLab galyleo-extension Integration Tests",
   "private": true,

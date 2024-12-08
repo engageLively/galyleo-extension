@@ -127,7 +127,8 @@ export class GalyleoDocModel implements DocumentRegistry.IModel {
    * Shared object content
    */
   get content(): string {
-    return this.sharedModel.get('content');
+    const content = this.sharedModel.get('content');
+    return content ? content : '{}';
   }
   set content(v: string) {
     this.sharedModel.set('content', v);
