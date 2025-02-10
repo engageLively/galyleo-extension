@@ -35,8 +35,35 @@ export const IGalyleoDocTracker = new Token<IWidgetTracker<GalyleoDocWidget>>(
   'galyleoDocTracker'
 );
 
-export let GALYLEO_URL: string = 'https://galyleo.app';
-const PLUGIN_ID = 'galyleo-extension:galyleo';
+class GalyleoURLFactory {
+  private _rootURL: string;
+  private _language: string;
+  private _storeServerURL: string;
+  constructor() {
+    this._rootURL = 'https://galyleo.app';
+    this._language = 'en';
+    this._storeServerURL = 'https://galyleo.app/publication/index.html';
+  }
+  get studioURL() {
+    const studio = this._language === 'ja_JP' ? 'studio-jp' : 'studio-en';
+    return `${this._rootURL}/${studio}/index.html`;
+  }
+  set rootURL(url: string) {
+    this._rootURL = url;
+  }
+  set language(language: string) {
+    this._language = language;
+  }
+  set storeServerURL(url: string) {
+    this._storeServerURL = url;
+  }
+  get storeServerURL(): string {
+    return this._storeServerURL;
+  }
+}
+export const galyleoURLFactory = new GalyleoURLFactory();
+
+export const PLUGIN_ID = 'galyleo-extension:galyleo';
 
 // The icon for the desktop
 export const galyleoIcon = new LabIcon({
@@ -81,16 +108,31 @@ const extension: JupyterFrontEndPlugin<void> = {
      * Load the settings for the Galyleo Extension
      */
 
-    function loadSettings(setting: ISettingRegistry.ISettings) {
-      GALYLEO_URL = setting.get('url').composite as string;
+    function loadGalyleoSettings(setting: ISettingRegistry.ISettings) {
+      galyleoURLFactory.rootURL = setting.get('galyleo_root_url')
+        .composite as string;
+      galyleoURLFactory.storeServerURL = setting.get('galyleo_storage_server')
+        .composite as string;
     }
 
     Promise.all([app.restored, settings.load(PLUGIN_ID)]).then(
       ([, setting]) => {
-        loadSettings(setting);
-        setting.changed.connect(loadSettings);
+        loadGalyleoSettings(setting);
+        setting.changed.connect(loadGalyleoSettings);
       }
     );
+
+    function loadGalyleoLanguageSettings(setting: ISettingRegistry.ISettings) {
+      galyleoURLFactory.language = setting.get('locale').composite as string;
+    }
+
+    Promise.all([
+      app.restored,
+      settings.load('@jupyterlab/translation-extension:plugin')
+    ]).then(([, setting]) => {
+      loadGalyleoLanguageSettings(setting);
+      setting.changed.connect(loadGalyleoLanguageSettings);
+    });
 
     // Handle state restoration.
     if (restorer) {
@@ -99,6 +141,17 @@ const extension: JupyterFrontEndPlugin<void> = {
         command: 'docmanager:open',
         args: widget => ({ path: widget.context.path, factory: FACTORY }),
         name: widget => widget.context.path
+      });
+
+      // read the Galyleo Settings from the command line
+      const queryString: string = window.location.search;
+      const urlParams: URLSearchParams = new URLSearchParams(queryString);
+      const parameters = ['galyleo_root_url', 'galyleo_storage_server'];
+      parameters.forEach(parameter => {
+        const value: string | null = urlParams.get(parameter);
+        if (value) {
+          settings.set(PLUGIN_ID, parameter, value);
+        }
       });
     }
 
@@ -134,12 +187,13 @@ const extension: JupyterFrontEndPlugin<void> = {
 
     // Creating the widget factory to register it so the document manager knows about
     // our new DocumentWidget
-    const widgetFactory = new GalyleoWidgetFactory({
+    const options = {
       name: FACTORY,
       modelName: 'galyleo-model',
       fileTypes: ['galyleo'],
       defaultFor: ['galyleo']
-    });
+    };
+    const widgetFactory = new GalyleoWidgetFactory(options);
 
     // Add the widget to the tracker when it's created
     widgetFactory.widgetCreated.connect((sender, widget) => {

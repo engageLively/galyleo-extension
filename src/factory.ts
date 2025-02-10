@@ -21,7 +21,6 @@ export class GalyleoWidgetFactory extends ABCWidgetFactory<
   constructor(options: DocumentRegistry.IWidgetFactoryOptions) {
     super(options);
   }
-
   /**
    * Create a new widget given a context.
    *

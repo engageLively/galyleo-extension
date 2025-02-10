@@ -25,8 +25,7 @@ import { Message } from '@lumino/messaging';
 import { Signal } from '@lumino/signaling';
 
 import { GalyleoDocModel } from './model';
-
-import { GALYLEO_URL } from './index';
+import { galyleoURLFactory } from '.';
 
 declare type StudioHandler =
   | 'galyleo:writeFile'
@@ -83,9 +82,13 @@ export class GalyleoPanel extends IFrame {
         'allow-storage-access-by-user-activation'
       ]
     });
+
     this._initMessageListeners();
     this._iframe = this.node.querySelector('iframe')!;
-    this._iframe.src = `${GALYLEO_URL}/studio-en/index.html?inJupyterLab=true`;
+    const studioURL: string = galyleoURLFactory.studioURL;
+    const publishString: string = `dashboardStoreServer=${galyleoURLFactory.storeServerURL}`;
+    const paramString: string = `inJupyterLab=true&dashboardStoreServer=${publishString}&studioServer=${studioURL}`;
+    this._iframe.src = `${studioURL}?${paramString}`;
     this._model = context.model;
     this._clients = new Map<string, HTMLElement>();
 

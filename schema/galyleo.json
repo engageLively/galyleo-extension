@@ -14,13 +14,18 @@
     ]
   },
   "properties": {
-    "url": {
+    "galyleo_root_url": {
       "type": "string",
-      "title": "URL",
+      "title": "Galyleo URL",
       "description": "URL for the Galyleo Studio",
       "default": "https://galyleo.app"
+    },
+    "galyleo_storage_server": {
+      "type": "string",
+      "title": "Storage URL",
+      "description": "URL for the Galyleo Publishing Server",
+      "default": "https://galyleo.app"
     }
-    
   },
   "additionalProperties": false,
   "type": "object"
