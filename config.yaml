@@ -75,3 +75,4 @@ hub:
               spawner.environment["GREETING"] = greeting
           print(spawner.environment)
       c.Spawner.pre_spawn_hook = my_hook
+      c.Spawner.default_url="/lab?inJupyterLab=true&galyleo_root_url=http://localhost/services/galyleo/static&galyleo_storage_server=http://localhost/services/galyleo/upload_dashboard"
