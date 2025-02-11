@@ -104,6 +104,16 @@ const extension: JupyterFrontEndPlugin<void> = {
     // Creating the tracker for the document
     const tracker = new WidgetTracker<GalyleoDocWidget>({ namespace });
 
+    const queryString: string = window.location.search;
+    const urlParams: URLSearchParams = new URLSearchParams(queryString);
+    const parameters = ['galyleo_root_url', 'galyleo_storage_server'];
+    parameters.forEach(parameter => {
+      const value: string | null = urlParams.get(parameter);
+      if (value) {
+        settings.set(PLUGIN_ID, parameter, value);
+      }
+    });
+
     /**
      * Load the settings for the Galyleo Extension
      */
@@ -117,6 +127,7 @@ const extension: JupyterFrontEndPlugin<void> = {
 
     Promise.all([app.restored, settings.load(PLUGIN_ID)]).then(
       ([, setting]) => {
+        // read the Galyleo Settings from the command line
         loadGalyleoSettings(setting);
         setting.changed.connect(loadGalyleoSettings);
       }
@@ -141,17 +152,6 @@ const extension: JupyterFrontEndPlugin<void> = {
         command: 'docmanager:open',
         args: widget => ({ path: widget.context.path, factory: FACTORY }),
         name: widget => widget.context.path
-      });
-
-      // read the Galyleo Settings from the command line
-      const queryString: string = window.location.search;
-      const urlParams: URLSearchParams = new URLSearchParams(queryString);
-      const parameters = ['galyleo_root_url', 'galyleo_storage_server'];
-      parameters.forEach(parameter => {
-        const value: string | null = urlParams.get(parameter);
-        if (value) {
-          settings.set(PLUGIN_ID, parameter, value);
-        }
       });
     }
 

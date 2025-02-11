@@ -1,0 +1,1 @@
+helm upgrade --cleanup-on-fail --debug --install jh2-helm-test jupyterhub/jupyterhub --namespace jh2-test --create-namespace --values config.yaml

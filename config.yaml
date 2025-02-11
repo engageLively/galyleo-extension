@@ -1,0 +1,77 @@
+singleuser:
+  image:
+    # You should replace the "latest" tag with a fixed version from:
+    # https://hub.docker.com/r/jupyter/datascience-notebook/tags/
+    # Inspect the Dockerfile at:
+    # https://github.com/jupyter/docker-stacks/tree/HEAD/datascience-notebook/Dockerfile
+    # name: engagelively/el-jupyter:datascience_4.0.0
+    name:  jupyter/datascience-notebook
+    tag: latest
+  # `cmd: null` allows the custom CMD of the Jupyter docker-stacks to be used
+  # which performs further customization on startup.
+  cmd: null
+  profileList:
+    - display_name: "Environment 2"
+      description: "Using engagelively/el-jupyter:datascience_4.0.0 (Max Duration: 4 Hours)"
+      kubespawner_override: 
+        image: engagelively/el-jupyter:datascience_4.0.0
+        pullPolicy: Always
+    - display_name: "Environment 3"
+      description: "Test engageLively new extension"
+      kubespawner_override: 
+        image: rickmcgeer/jupyter_galyleo_1
+        pullPolicy: Always
+
+hub:
+  cookieSecret: "02486733472136175476809643230687"
+  config:
+    JupyterHub:
+      admin_users:
+        - rick
+      disable_check_xsrf: true
+      hub_ip: 0.0.0.0
+    Authenticator:
+      auto_login_oauth2_authorize: true
+    ConfigurableHTTPProxy:
+      log_level: DEBUG
+  extraConfig:
+    service_1_config: |
+      import os
+      c.JupyterHub.load_roles = [
+        {
+            "name": "galyleo-role",
+            "scopes": ["list:users"],  # Allows listing users
+            "services": ["galyleo"],  # Grants this role to the service
+        }
+      ]
+      c.JupyterHub.services.append(
+          {
+              'name': 'hello',
+              'url': 'http://192.168.86.69:5000',
+              'api_token': 'djfkdsjjkdfk',
+              'oauth_redirect_uri': 'http://localhost/services/hello/callback',
+              'oauth_no_confirm': True,
+              'oauth_client_id': 'service-hello'
+          }
+      )
+      c.JupyterHub.services.append(
+          {
+              'name': 'galyleo',
+              'url': 'http://192.168.86.69:9999/',
+              'api_token': 'djfkdsjjkdfk',
+              'admin': True,
+              'oauth_redirect_uri': 'http://localhost/services/galyleo/callback',
+              'oauth_no_confirm': True,
+              'oauth_client_id': 'service-galyleo'
+          }
+      )
+      def my_hook(spawner):
+          username = spawner.user.name
+          greeting = f"Hello {username}"
+          
+          if spawner.environment is None:
+              spawner.environment = {'Greeting': greeting}
+          else:
+              spawner.environment["GREETING"] = greeting
+          print(spawner.environment)
+      c.Spawner.pre_spawn_hook = my_hook

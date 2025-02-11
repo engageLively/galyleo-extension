@@ -1,0 +1,1 @@
+galyleo_root_url=http://localhost/services/galyleo/static&galyleo_store_server=http://localhost/services/galyleo/upload_dashboard
