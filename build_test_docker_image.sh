@@ -1,0 +1,2 @@
+#!/bin/bash
+docker build -t rickmcgeer/jupyter_galyleo_1:latest .
