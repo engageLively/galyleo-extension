@@ -2,17 +2,6 @@
 {
   "title": "Galyleo Settings",
   "description": "Settings of the settings example.",
-  "jupyter.lab.menus": {
-    "main": [
-      {
-        "id": "jp-mainmenu-galyleo-settings",
-        "label": "Galyleo",
-        "rank": 80,
-        "items": [
-        ]
-      }
-    ]
-  },
   "properties": {
     "galyleo_root_url": {
       "type": "string",

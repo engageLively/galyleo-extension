@@ -1,12 +1,15 @@
-import { ICollaborativeDrive } from '@jupyter/docprovider';
-
 import {
   JupyterFrontEnd,
   JupyterFrontEndPlugin,
   ILayoutRestorer
 } from '@jupyterlab/application';
 
-import { WidgetTracker, IWidgetTracker } from '@jupyterlab/apputils';
+import {
+  WidgetTracker,
+  IWidgetTracker,
+  IFrame,
+  ICommandPalette,
+} from '@jupyterlab/apputils';
 
 import { Token } from '@lumino/coreutils';
 
@@ -24,6 +27,7 @@ import {
 import { ILauncher } from '@jupyterlab/launcher';
 import { IDefaultFileBrowser } from '@jupyterlab/filebrowser';
 import { IMainMenu } from '@jupyterlab/mainmenu';
+import { Menu } from '@lumino/widgets';
 
 /**
  * The name of the factory that creates editor widgets.
@@ -46,7 +50,7 @@ class GalyleoURLFactory {
   }
   get studioURL() {
     const studio = this._language === 'ja_JP' ? 'studio-jp' : 'studio-en';
-    return `${this._rootURL}/${studio}/index.html`;
+    return `${this._rootURL}/static/${studio}/index.html`;
   }
   set rootURL(url: string) {
     this._rootURL = url;
@@ -59,6 +63,9 @@ class GalyleoURLFactory {
   }
   get storeServerURL(): string {
     return this._storeServerURL;
+  }
+  get serviceURL(): string {
+    return `${this.rootURL}/greeting`;
   }
 }
 export const galyleoURLFactory = new GalyleoURLFactory();
@@ -85,9 +92,9 @@ const extension: JupyterFrontEndPlugin<void> = {
     ITranslator,
     IMainMenu,
     ILauncher,
-    IDefaultFileBrowser
+    IDefaultFileBrowser,
+    ICommandPalette
   ],
-  optional: [ICollaborativeDrive],
   provides: IGalyleoDocTracker,
   activate: (
     app: JupyterFrontEnd,
@@ -97,7 +104,7 @@ const extension: JupyterFrontEndPlugin<void> = {
     mainMenu: IMainMenu,
     launcher: ILauncher,
     defaultBrowser: IDefaultFileBrowser,
-    drive: ICollaborativeDrive | null
+    palette: ICommandPalette
   ) => {
     // Namespace for the tracker
     const namespace = 'documents-galyleo';
@@ -297,10 +304,48 @@ const extension: JupyterFrontEndPlugin<void> = {
       }
     };
 
+    const newWidget = (id: string, url: string) => {
+      const widget = new IFrame({
+        sandbox: [
+          'allow-scripts',
+          'allow-popups',
+          'allow-modals',
+          'allow-storage-access-by-user-activation',
+          'allow-same-origin'
+        ],
+        referrerPolicy: 'no-referrer'
+      });
+      const _iframe = widget.node.querySelector('iframe') as HTMLIFrameElement;
+      _iframe.src = url;
+      return widget;
+    };
+
+    const serviceCommand = {
+      label: makeLabel('Galyleo Service'),
+      text: 'Galyleo Reference',
+      execute: () => {
+        const widget = newWidget(
+          'Galyleo Service',
+          galyleoURLFactory.serviceURL
+        );
+        app.shell.add(widget);
+      }
+    };
+
+    const svcCommand = 'galyleo-service-command';
+
+    app.commands.addCommand(svcCommand, serviceCommand);
+    palette.addItem({ command: svcCommand, category: 'Galyleo' });
     console.log('Adding menu commands');
 
     mainMenu.fileMenu.newMenu.addGroup([{ command: newCommand }], 30);
     mainMenu.helpMenu.addGroup([helpCommand]);
+    const galyleoMenu: Menu = new Menu({ commands: app.commands });
+    galyleoMenu.addItem({ command: svcCommand });
+    galyleoMenu.title.label = 'Galyleo';
+    mainMenu.addMenu(galyleoMenu);
+
+    // mainMenu.galyleoMenu.addGroup([serviceCommand])
   }
 };
 

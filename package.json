@@ -56,28 +56,25 @@
         "watch:labextension": "jupyter labextension watch ."
     },
     "dependencies": {
-        "@jupyter/docprovider": "^1.0.0",
-        "@jupyter/ydoc": "^1.0.0",
-        "@jupyterlab/application": "^4.0.0",
-        "@jupyterlab/apputils": "^4.0.0",
-        "@jupyterlab/coreutils": "^6.0.0",
-        "@jupyterlab/docregistry": "^4.0.0",
+        "@jupyterlab/application": "4.1.8",
+        "@jupyterlab/apputils": "4.1.8",
+        "@jupyterlab/coreutils": "6.1.8",
+        "@jupyterlab/docregistry": "4.1.8",
         "@jupyterlab/filebrowser": "4.1.8",
         "@jupyterlab/launcher": "4.1.8",
-        "@jupyterlab/mainmenu": "^4.1.8",
-        "@jupyterlab/services": "^7.0.0",
-        "@jupyterlab/settingregistry": "^4.0.0",
-        "@jupyterlab/ui-components": "4.0.0",
+        "@jupyterlab/mainmenu": "4.1.8",
+        "@jupyterlab/services": "7.1.0",
+        "@jupyterlab/settingregistry": "4.1.8",
+        "@jupyterlab/ui-components": "4.1.8",
         "@lumino/coreutils": "^2.0.0",
         "@lumino/messaging": "^2.0.0",
         "@lumino/signaling": "^2.0.0",
-        "@lumino/widgets": "^2.0.0",
         "@types/lodash": "^4.14.200",
         "yjs": "^13.5.6"
     },
     "devDependencies": {
-        "@jupyterlab/builder": "^4.0.0",
-        "@jupyterlab/testutils": "^4.0.0",
+        "@jupyterlab/builder": "4.1.8",
+        "@jupyterlab/testutils": "4.1.8",
         "@types/jest": "^29.2.0",
         "@types/json-schema": "^7.0.11",
         "@types/react": "^18.0.26",
@@ -100,7 +97,7 @@
         "stylelint-csstree-validator": "^3.0.0",
         "stylelint-prettier": "^4.0.0",
         "typescript": "~5.0.2",
-        "yjs": "^13.5.0"
+        "yjs": "^13.5.6"
     },
     "sideEffects": [
         "style/*.css",
