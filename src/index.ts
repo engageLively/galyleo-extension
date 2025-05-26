@@ -196,7 +196,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
       execute: async () => {
         const helpWidget: MainAreaWidget = mainAreaIframe(
           'https://galyleo-user-docs.readthedocs.io/en/latest/index.html',
-          'Galyleo Helo',
+          'Galyleo Help',
           'widget:help'
         );
         app.shell.add(helpWidget);
