@@ -2,7 +2,9 @@
 
 [![Github Actions Status](n/a/workflows/Build/badge.svg)](n/a/actions/workflows/build.yml)
 
-A fast test of reading a file and displaying it
+A JupyterLab extension to integrate the Galyleo Dashboard Editor.
+The Galyleo Dashboard Editor offers drag-and-drop creation of 
+interactive dashboards and visualizations, with one-click publication to the web.
 
 ## Requirements
 
