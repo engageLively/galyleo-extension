@@ -35,8 +35,12 @@ source = "nodejs"
 fields = ["description", "authors", "urls", "keywords"]
 
 [tool.hatch.build.targets.sdist]
-artifacts = ["galyleo_extension/labextension", "galyleo_extension/static"]
+packages = ["galyleo_extension"]
+artifacts = ["galyleo_extension/labextension"]
 exclude = [".github", "binder"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["galyleo_extension"]
 
 [tool.hatch.build.targets.wheel.shared-data]
 "galyleo_extension/labextension" = "share/jupyter/labextensions/galyleo_extension"
@@ -78,5 +82,5 @@ before-build-python = ["jlpm clean:all"]
 [tool.check-wheel-contents]
 ignore = ["W002"]
 
-[tool.hatch.build.targets.wheel.force-include]
-"galyleo_extension/static" = "galyleo_extension/static"
+[project.entry-points."jupyter_server.extension"]
+galyleo_extension = "galyleo_extension"

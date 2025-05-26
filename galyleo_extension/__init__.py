@@ -9,6 +9,13 @@ except ImportError:
     warnings.warn("Importing 'galyleo_extension' outside a proper installation.")
     __version__ = "dev"
 
+def _jupyter_server_extension_points():
+    """
+    Returns a list of dictionaries with metadata describing
+    where to find the `_load_jupyter_server_extension` function.
+    """
+    return [{"module": "galyleo_extension"}]
+
 def _jupyter_labextension_paths():
     return [{
         "src": "labextension",
@@ -20,13 +27,61 @@ def _jupyter_server_extension_paths():
         "module": "galyleo_extension"
     }]
 
-def load_jupyter_server_extension(nbapp):
-    web_app = nbapp.web_app
-    base_url = web_app.settings["base_url"]
+import tarfile
+import requests
+import shutil
 
-    static_path = os.path.join(os.path.dirname(__file__), "static", "studio-en")
+TARBALL_URL = "https://github.com/engageLively/gayleo-web-build/releases/download/v.2025.25.05/galyleo-editor.tar.gz"
+EXTENSION_DIR = os.path.dirname(__file__)
+STATIC_DIR = os.path.join(EXTENSION_DIR, "static")
+STUDIO_EN_DIR = os.path.join(EXTENSION_DIR, "static", "studio-en")
+
+def _download_and_unpack_tarball():
+    if os.path.exists(STATIC_DIR):
+        if os.path.exists(STUDIO_EN_DIR):
+            return
+        else:
+            shutil.rmtree(STATIC_DIR)
+    tarball_path = os.path.join(EXTENSION_DIR, "galyleo-editor.tar.gz")
+    response = requests.get(TARBALL_URL, stream=True)
+    response.raise_for_status()
+    with open(tarball_path, 'wb') as f:
+        for chunk in response.iter_content(chunk_size=8192):
+            f.write(chunk)
+
+    with tarfile.open(tarball_path, "r:gz") as tar:
+        tar.extractall(path=EXTENSION_DIR)
+
+    os.remove(tarball_path)
+
+def load_jupyter_server_extension(nbapp):
+    log = getattr(nbapp, "log", None)
+    if log:
+        log.info("✅ Galyleo extension: load_jupyter_server_extension CALLED")
+
+    try:
+        _download_and_unpack_tarball()
+    except Exception as e:
+        if log:
+            log.error(f"🔥 Galyleo extension failed to unpack tarball: {e}")
+        # Only raise if it's runtime, not validation
+        if hasattr(nbapp, "web_app"):
+            raise
+
+    # Validate `web_app` and `settings`
+    if not hasattr(nbapp, "web_app") or not hasattr(nbapp.web_app, "settings"):
+        if log:
+            log.warning("🟡 nbapp.web_app not available — skipping route registration")
+        return
+
+    static_path = os.path.join(EXTENSION_DIR, "static", "studio-en")
+    base_url = nbapp.web_app.settings.get("base_url", "/")
     route_pattern = url_path_join(base_url, "studio-en/(.*)")
 
-    web_app.add_handlers(".*$", [(route_pattern, StaticFileHandler, {"path": static_path})])
+    nbapp.web_app.add_handlers(".*$", [
+        (route_pattern, StaticFileHandler, {"path": static_path})
+    ])
 
-    nbapp.log.info("Serving iframe app at /studio-en/")
+    if log:
+        log.info("✅ Serving galyleo editor at /studio-en/")
+
