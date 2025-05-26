@@ -1,13 +1,15 @@
 {
     "name": "galyleo_extension",
     "version": "0.1.0",
-    "description": "A fast test of reading a file and displaying it",
+    "description": "A JupyterLab extension to integrate the Galyleo Dashboard Editor.",
     "keywords": [
         "jupyter",
         "jupyterlab",
-        "jupyterlab-extension"
+        "jupyterlab-extension",
+        "galyleo",
+        "visualization"
     ],
-    "homepage": "n/a",
+    "homepage": "https://github.com/engagelively/galyleo-extension",
     "license": "BSD-3-Clause",
     "author": {
         "name": "Rick McGeer",
@@ -23,7 +25,7 @@
     "style": "style/index.css",
     "repository": {
         "type": "git",
-        "url": "n/a.git"
+        "url": "https://github.com/engagelively/galyleo-extension"
     },
     "scripts": {
         "build": "jlpm build:lib && jlpm build:labextension:dev",
