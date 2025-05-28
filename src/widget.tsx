@@ -37,7 +37,7 @@ export class GalyleoPanel extends IFrame {
     // Access the iframe from the node after attach
     this._iframe = this.node.querySelector('iframe')! as HTMLIFrameElement;
     const studioURL: string = galyleoURLFactory.studioURL;
-    const publishString: string = `galyleo_server=${galyleoURLFactory.rootURL}`;
+    const publishString: string = `galyleo_server=${galyleoURLFactory.galyleoServiceURL}`;
     const paramString: string = `inJupyterLab=true&${publishString}&studioServer=${studioURL}`;
     const url = `${studioURL}?${paramString}`;
     this._iframe.src = url;

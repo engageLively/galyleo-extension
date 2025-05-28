@@ -16,6 +16,7 @@ import { GalyleoPanel } from './widget';
 import { LabIcon, IFrame } from '@jupyterlab/ui-components';
 import { PageConfig } from '@jupyterlab/coreutils';
 import { Menu } from '@lumino/widgets';
+import { ITranslator } from '@jupyterlab/translation';
 
 export const mainAreaIframe = (url: string, label: string, id: string) => {
   const iframe: IFrame = new IFrame({
@@ -38,10 +39,29 @@ export const mainAreaIframe = (url: string, label: string, id: string) => {
   return widget;
 };
 
-export const galyleoURLFactory = {
-  studioURL: PageConfig.getBaseUrl() + 'studio-en/index.html',
-  rootURL: 'http://localhost:9999/services/galyleo'
-};
+// In production, galyleoServiceURL will ALWAYS end in /services/galyleo
+
+export class GalyleoURLFactory {
+  private _translator: ITranslator;
+  private _serviceURL: string;
+  constructor(_translator: ITranslator) {
+    this._translator = _translator;
+    this._serviceURL = 'http://localhost:9999/services/galyleo';
+  }
+  get studioURL(): string {
+    const studio: string =
+      this._translator.languageCode === 'ja' ? 'studio-jp' : 'studio-en';
+    return PageConfig.getBaseUrl() + studio + '/index.html';
+  }
+  get galyleoServiceURL(): string {
+    return this._serviceURL;
+  }
+  set galyleoServiceURL(serviceURL: string) {
+    this._serviceURL = serviceURL;
+  }
+}
+
+export let galyleoURLFactory: GalyleoURLFactory;
 
 // The icon for the desktop
 export const galyleoIcon = new LabIcon({
@@ -73,6 +93,23 @@ export class GalyleoPanelFactory extends ABCWidgetFactory<
     return widget;
   }
 }
+
+// Example: fetch environment variables from <foo>/env
+async function fetchEnvVars(): Promise<Record<string, string>> {
+  const baseUrl = PageConfig.getBaseUrl(); // e.g., "https://myserver.org/jupyter/"
+  const response = await fetch(`${baseUrl}env`, {
+    method: 'GET',
+    credentials: 'same-origin'
+  });
+
+  if (!response.ok) {
+    console.error('Failed to load environment variables');
+    return {};
+  }
+
+  return await response.json();
+}
+
 /**
  * Initialization data for the galyleo_extension extension.
  */
@@ -80,22 +117,32 @@ const plugin: JupyterFrontEndPlugin<void> = {
   id: 'galyleo_extension:plugin',
   description: 'A fast test of reading a file and displaying it',
   autoStart: true,
-  requires: [ICommandPalette, IMainMenu, ILauncher],
+  requires: [ICommandPalette, IMainMenu, ILauncher, ITranslator],
   activate: (
     app: JupyterFrontEnd,
     palette: ICommandPalette,
     mainMenu: IMainMenu,
-    launcher: ILauncher
+    launcher: ILauncher,
+    translator: ITranslator
   ) => {
+    galyleoURLFactory = new GalyleoURLFactory(translator);
     console.log('JupyterLab extension galyleo_extension is activated!');
     // Get the query string from the current URL
-    const urlParams = new URLSearchParams(window.location.search);
+    // const urlParams = new URLSearchParams(window.location.search);
 
     // Retrieve the value of the 'galyleoServer' parameter
-    const galyleoServer = urlParams.get('galyleoServer');
-
+    // const galyleoServer = urlParams.get('galyleoServer');
+    // if (galyleoServer) {
+    //   galyleoURLFactory.rootURL = galyleoServer;
+    // }
     // Log or use the value
-    console.log(galyleoServer);
+    fetchEnvVars().then(envVars => {
+      const galyleoServer: string = envVars['galyleoServer'];
+      console.log(`Server is ${galyleoServer}`);
+      if (galyleoServer) {
+        galyleoURLFactory.galyleoServiceURL = galyleoServer;
+      }
+    });
 
     const { commands, serviceManager } = app;
 
@@ -179,7 +226,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
       icon: galyleoIcon,
       execute: async () => {
         const helpWidget: MainAreaWidget = mainAreaIframe(
-          `${galyleoServer}/services/galyleo/greeting`,
+          `${galyleoURLFactory.galyleoServiceURL}/greeting`,
           'Galyleo Service',
           'widget:service'
         );

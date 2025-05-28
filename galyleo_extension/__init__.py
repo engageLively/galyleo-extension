@@ -16,23 +16,44 @@ def _jupyter_server_extension_points():
     """
     return [{"module": "galyleo_extension"}]
 
-def _jupyter_labextension_paths():
-    return [{
-        "src": "labextension",
-        "dest": "galyleo_extension"
-    }]
+# def _jupyter_labextension_paths():
+#     return [{
+#         "src": "labextension",
+#         "dest": "galyleo_extension",
+#         "module": "galyleo_extension"
+#     }]
 
-def _jupyter_server_extension_paths():
-    return [{
-        "module": "galyleo_extension"
-    }]
+EXTENSION_DIR = os.path.dirname(__file__)
+from jupyter_server.base.handlers import APIHandler
+import json
+
+
+
+class EnvVarHandler(APIHandler):
+    def _get_services_URL(self):
+        if "GALYLEO_SERVER" in os.environ:
+            return os.environ["GALYLEO_SERVER"]
+        return f'{self.request.protocol}://{self.request.host}/services/galyleo'
+        
+
+    def get(self):
+        self.finish(json.dumps({
+            "galyleoServer": self._get_services_URL(),
+            "host": self.request.host,
+            "protocol": self.request.protocol,
+            "base_url":  self.settings['base_url']
+        }))
+
+
+
 
 import tarfile
 import requests
 import shutil
 
 TARBALL_URL = "https://github.com/engageLively/gayleo-web-build/releases/download/v.2025.25.05/galyleo-editor.tar.gz"
-EXTENSION_DIR = os.path.dirname(__file__)
+
+
 STATIC_DIR = os.path.join(EXTENSION_DIR, "static")
 STUDIO_EN_DIR = os.path.join(EXTENSION_DIR, "static", "studio-en")
 
@@ -73,14 +94,20 @@ def load_jupyter_server_extension(nbapp):
         if log:
             log.warning("🟡 nbapp.web_app not available — skipping route registration")
         return
-
-    static_path = os.path.join(EXTENSION_DIR, "static", "studio-en")
+    
     base_url = nbapp.web_app.settings.get("base_url", "/")
-    route_pattern = url_path_join(base_url, "studio-en/(.*)")
+    env_route_pattern = url_path_join(base_url, "env")
 
-    nbapp.web_app.add_handlers(".*$", [
-        (route_pattern, StaticFileHandler, {"path": static_path})
-    ])
+    handlers = [
+        (env_route_pattern, EnvVarHandler)
+    ]
+
+    for file_dir in ['studio-en', 'studio-jp']:
+        static_path = os.path.join(EXTENSION_DIR, "static", file_dir)
+        static_route_pattern = url_path_join(base_url, f"{file_dir}/(.*)")
+        handlers.append((static_route_pattern, StaticFileHandler, {"path": static_path}))
+
+    nbapp.web_app.add_handlers(".*$", handlers)
 
     if log:
         log.info("✅ Serving galyleo editor at /studio-en/")

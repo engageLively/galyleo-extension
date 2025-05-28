@@ -1,1 +1,1 @@
-docker build -t rickmcgeer/jupyter_galyleo_1:latest .
+docker build -t rickmcgeer/jupyter_galyleo_2:latest .
