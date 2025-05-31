@@ -50,7 +50,7 @@ export class GalyleoURLFactory {
   }
   get studioURL(): string {
     const studio: string =
-      this._translator.languageCode === 'ja' ? 'studio-jp' : 'studio-en';
+      this._translator.languageCode === 'ja_JP' ? 'studio-jp' : 'studio-en';
     return PageConfig.getBaseUrl() + studio + '/index.html';
   }
   get galyleoServiceURL(): string {

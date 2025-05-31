@@ -23,7 +23,7 @@ def _jupyter_server_extension_points():
 #         "module": "galyleo_extension"
 #     }]
 
-EXTENSION_DIR = os.path.dirname(__file__)
+GALYLEO_ASSET_DIR = os.getenv('GALYLEO_ASSET_DIR', os.path.dirname(__file__))
 from jupyter_server.base.handlers import APIHandler
 import json
 
@@ -54,8 +54,8 @@ import shutil
 TARBALL_URL = "https://github.com/engageLively/gayleo-web-build/releases/download/v.2025.25.05/galyleo-editor.tar.gz"
 
 
-STATIC_DIR = os.path.join(EXTENSION_DIR, "static")
-STUDIO_EN_DIR = os.path.join(EXTENSION_DIR, "static", "studio-en")
+STATIC_DIR = os.path.join(GALYLEO_ASSET_DIR, "static")
+STUDIO_EN_DIR = os.path.join(GALYLEO_ASSET_DIR, "static", "studio-en")
 
 def _download_and_unpack_tarball():
     if os.path.exists(STATIC_DIR):
@@ -63,7 +63,7 @@ def _download_and_unpack_tarball():
             return
         else:
             shutil.rmtree(STATIC_DIR)
-    tarball_path = os.path.join(EXTENSION_DIR, "galyleo-editor.tar.gz")
+    tarball_path = os.path.join(GALYLEO_ASSET_DIR, "galyleo-editor.tar.gz")
     response = requests.get(TARBALL_URL, stream=True)
     response.raise_for_status()
     with open(tarball_path, 'wb') as f:
@@ -71,7 +71,7 @@ def _download_and_unpack_tarball():
             f.write(chunk)
 
     with tarfile.open(tarball_path, "r:gz") as tar:
-        tar.extractall(path=EXTENSION_DIR)
+        tar.extractall(path=GALYLEO_ASSET_DIR)
 
     os.remove(tarball_path)
 
@@ -103,7 +103,7 @@ def load_jupyter_server_extension(nbapp):
     ]
 
     for file_dir in ['studio-en', 'studio-jp']:
-        static_path = os.path.join(EXTENSION_DIR, "static", file_dir)
+        static_path = os.path.join(GALYLEO_ASSET_DIR, "static", file_dir)
         static_route_pattern = url_path_join(base_url, f"{file_dir}/(.*)")
         handlers.append((static_route_pattern, StaticFileHandler, {"path": static_path}))
 
