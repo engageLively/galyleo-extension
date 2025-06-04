@@ -1,6 +1,6 @@
 {
     "name": "galyleo_extension",
-    "version": "0.1.8",
+    "version": "0.1.9",
     "description": "A JupyterLab extension to integrate the Galyleo Dashboard Editor.",
     "keywords": [
         "jupyter",

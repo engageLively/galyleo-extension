@@ -28,7 +28,8 @@ export const mainAreaIframe = (url: string, label: string, id: string) => {
       'allow-presentation',
       'allow-scripts',
       'allow-storage-access-by-user-activation',
-      'allow-top-navigation'
+      'allow-top-navigation',
+      'allow-same-origin'
     ]
   });
   iframe.url = url;
