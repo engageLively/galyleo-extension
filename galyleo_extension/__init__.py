@@ -51,7 +51,8 @@ import tarfile
 import requests
 import shutil
 
-TARBALL_URL = "https://github.com/engageLively/gayleo-web-build/releases/download/v.2025.25.05/galyleo-editor.tar.gz"
+TARBALL_DEFAULT = "https://github.com/engageLively/galyleo-web-build/archive/refs/tags/v2025.06.07.tar.gz"
+TARBALL_URL = os.getenv('GALYLEO_RELEASE_URL', TARBALL_DEFAULT)
 
 
 STATIC_DIR = os.path.join(GALYLEO_ASSET_DIR, "static")
@@ -70,10 +71,15 @@ def _download_and_unpack_tarball():
         for chunk in response.iter_content(chunk_size=8192):
             f.write(chunk)
 
-    with tarfile.open(tarball_path, "r:gz") as tar:
-        tar.extractall(path=GALYLEO_ASSET_DIR)
+    temp_dir = os.path.join(GALYLEO_ASSET_DIR, "__temp_extract__")
 
-    os.remove(tarball_path)
+    with tarfile.open(tarball_path, "r:gz") as tar:
+        names = tar.getnames()
+        dirnames = [name for name in names if name.endswith('static')]
+        source = dirnames[0]
+        tar.extractall(path=temp_dir)
+        extracted_path = os.path.join(temp_dir, source)
+        shutil.move(extracted_path, STATIC_DIR)
 
 def load_jupyter_server_extension(nbapp):
     log = getattr(nbapp, "log", None)
