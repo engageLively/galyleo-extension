@@ -127,3 +127,6 @@ untitled.gd.json
 untitled5.gd.json
 untitled6.gd.json
 /docker-build/galyleo-assets
+galyleo_extension/galyleo-editor.tar.gz
+/galyleo_extension/__temp_extract__
+/galyleo_extension/static

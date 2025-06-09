@@ -17,6 +17,7 @@ import { LabIcon, IFrame } from '@jupyterlab/ui-components';
 import { PageConfig } from '@jupyterlab/coreutils';
 import { Menu } from '@lumino/widgets';
 import { ITranslator } from '@jupyterlab/translation';
+import { IFileBrowserFactory } from '@jupyterlab/filebrowser';
 
 export const mainAreaIframe = (url: string, label: string, id: string) => {
   const iframe: IFrame = new IFrame({
@@ -118,13 +119,20 @@ const plugin: JupyterFrontEndPlugin<void> = {
   id: 'galyleo_extension:plugin',
   description: 'A fast test of reading a file and displaying it',
   autoStart: true,
-  requires: [ICommandPalette, IMainMenu, ILauncher, ITranslator],
+  requires: [
+    ICommandPalette,
+    IMainMenu,
+    ILauncher,
+    ITranslator,
+    IFileBrowserFactory
+  ],
   activate: (
     app: JupyterFrontEnd,
     palette: ICommandPalette,
     mainMenu: IMainMenu,
     launcher: ILauncher,
-    translator: ITranslator
+    translator: ITranslator,
+    browserFactory: IFileBrowserFactory
   ) => {
     galyleoURLFactory = new GalyleoURLFactory(translator);
     console.log('JupyterLab extension galyleo_extension is activated!');
@@ -146,6 +154,7 @@ const plugin: JupyterFrontEndPlugin<void> = {
     });
 
     const { commands, serviceManager } = app;
+    const fileBrowser = browserFactory.tracker.currentWidget;
 
     const galyleoType = galyleoFileType;
 
@@ -175,11 +184,12 @@ const plugin: JupyterFrontEndPlugin<void> = {
       caption: 'Create a new Galyleo dashboard',
       icon: galyleoIcon,
       execute: async () => {
-        const model = await serviceManager.contents.newUntitled({
+        const fileOptions = {
           type: 'file',
-          ext: fileTypeExtension
-        });
-
+          ext: fileTypeExtension,
+          path: fileBrowser?.model.path
+        };
+        const model = await serviceManager.contents.newUntitled(fileOptions);
         await serviceManager.contents.save(model.path, {
           type: 'file',
           format: 'text',
