@@ -47,53 +47,18 @@ class EnvVarHandler(APIHandler):
 
 
 
-import tarfile
-import requests
-import shutil
 
-TARBALL_DEFAULT = "https://github.com/engageLively/galyleo-web-build/archive/refs/tags/v2025.06.07.tar.gz"
-TARBALL_URL = os.getenv('GALYLEO_RELEASE_URL', TARBALL_DEFAULT)
-
-
-STATIC_DIR = os.path.join(GALYLEO_ASSET_DIR, "static")
-STUDIO_EN_DIR = os.path.join(GALYLEO_ASSET_DIR, "static", "studio-en")
-
-def _download_and_unpack_tarball():
-    if os.path.exists(STATIC_DIR):
-        if os.path.exists(STUDIO_EN_DIR):
-            return
-        else:
-            shutil.rmtree(STATIC_DIR)
-    tarball_path = os.path.join(GALYLEO_ASSET_DIR, "galyleo-editor.tar.gz")
-    response = requests.get(TARBALL_URL, stream=True)
-    response.raise_for_status()
-    with open(tarball_path, 'wb') as f:
-        for chunk in response.iter_content(chunk_size=8192):
-            f.write(chunk)
-
-    temp_dir = os.path.join(GALYLEO_ASSET_DIR, "__temp_extract__")
-
-    with tarfile.open(tarball_path, "r:gz") as tar:
-        names = tar.getnames()
-        dirnames = [name for name in names if name.endswith('static')]
-        source = dirnames[0]
-        tar.extractall(path=temp_dir)
-        extracted_path = os.path.join(temp_dir, source)
-        shutil.move(extracted_path, STATIC_DIR)
+class NoCacheStaticHandler(StaticFileHandler):
+    def set_extra_headers(self, path):
+        self.set_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+        self.set_header("Pragma", "no-cache")
+        self.set_header("Expires", "0")
 
 def load_jupyter_server_extension(nbapp):
     log = getattr(nbapp, "log", None)
     if log:
         log.info("✅ Galyleo extension: load_jupyter_server_extension CALLED")
 
-    try:
-        _download_and_unpack_tarball()
-    except Exception as e:
-        if log:
-            log.error(f"🔥 Galyleo extension failed to unpack tarball: {e}")
-        # Only raise if it's runtime, not validation
-        if hasattr(nbapp, "web_app"):
-            raise
 
     # Validate `web_app` and `settings`
     if not hasattr(nbapp, "web_app") or not hasattr(nbapp.web_app, "settings"):
@@ -108,10 +73,10 @@ def load_jupyter_server_extension(nbapp):
         (env_route_pattern, EnvVarHandler)
     ]
 
-    for file_dir in ['studio-en', 'studio-jp']:
-        static_path = os.path.join(GALYLEO_ASSET_DIR, "static", file_dir)
+    for file_dir in ['studio-en', 'studio-jp', 'test']:
+        static_path = os.path.join(GALYLEO_ASSET_DIR, file_dir)
         static_route_pattern = url_path_join(base_url, f"{file_dir}/(.*)")
-        handlers.append((static_route_pattern, StaticFileHandler, {"path": static_path}))
+        handlers.append((static_route_pattern, NoCacheStaticHandler, {"path": static_path}))
 
     nbapp.web_app.add_handlers(".*$", handlers)
 

@@ -20,34 +20,45 @@ function _getJSONForm(content: any): string {
 export class GalyleoPanel extends IFrame {
   private _iframe: HTMLIFrameElement;
   private _model: DocumentModel;
+  private _context: DocumentRegistry.IContext<DocumentModel>;
+  private _instanceId: string;
+  private _messageListener: (event: MessageEvent) => void;
+  private _isReady: boolean = false;
 
   constructor(context: DocumentRegistry.IContext<DocumentModel>) {
     super({
       sandbox: [
         'allow-scripts',
-        'allow-popups',
-        'allow-modals',
         'allow-storage-access-by-user-activation',
         'allow-same-origin'
       ],
       referrerPolicy: 'no-referrer'
     });
+    context.ready.then(_ => {
+      this._isReady = true;
+      this._model.contentChanged.connect(this._onContentChanged);
+      this._onContentChanged();
+      this.update(); // <- this is safe because Widget defines it
+    });
 
-    this._initMessageListeners();
+    this._messageListener = this._createMessageListener();
+    window.addEventListener('message', this._messageListener);
     // Access the iframe from the node after attach
     this._iframe = this.node.querySelector('iframe')! as HTMLIFrameElement;
     const studioURL: string = galyleoURLFactory.studioURL;
-    const publishString: string = `galyleo_server=${galyleoURLFactory.galyleoServiceURL}`;
-    const paramString: string = `inJupyterLab=true&${publishString}&studioServer=${studioURL}`;
+    this._instanceId = window.crypto.randomUUID();
+    const publishString: string = `galyleo_server=${encodeURIComponent(
+      galyleoURLFactory.galyleoServiceURL
+    )}`;
+    const paramString: string = `instanceId=${
+      this._instanceId
+    }&inJupyterLab=true&${publishString}&studioServer=${encodeURIComponent(
+      studioURL
+    )}`;
     const url = `${studioURL}?${paramString}`;
     this._iframe.src = url;
     this._model = context.model;
-
-    context.ready.then(value => {
-      this._model.contentChanged.connect(this._onContentChanged);
-      this._onContentChanged();
-      this.update();
-    });
+    this._context = context;
   }
 
   /**
@@ -58,6 +69,7 @@ export class GalyleoPanel extends IFrame {
       return;
     }
     this._model.contentChanged.disconnect(this._onContentChanged);
+    window.removeEventListener('message', this._messageListener);
     Signal.clearData(this);
     super.dispose();
   }
@@ -77,46 +89,57 @@ export class GalyleoPanel extends IFrame {
   /**
    * Initialize message listeners for events from the iframe.
    */
-  private _initMessageListeners(): void {
-    const handlers = {
-      'galyleo:writeFile': (evt: MessageEvent) => {
-        // this._model.fromString(_getJSONForm(evt.data.jsonString));
-        this._model.fromJSON(evt.data.jsonForm);
+  private _createMessageListener(): (evt: MessageEvent) => void {
+    const handlers: Record<string, (evt: MessageEvent) => void> = {
+      'galyleo:ready': () => {
+        if (this._isReady) {
+          const raw = this._model.sharedModel.getSource();
+          const dashboardObject = raw.trim() ? JSON.parse(raw) : {};
+          const payload = { content: dashboardObject };
+          this._postMessage('galyleo:loadContent', payload);
+        } else {
+          console.warn(
+            'Received galyleo:ready before context.ready — deferring.'
+          );
+          this._context.ready.then(() => {
+            const raw = this._model.sharedModel.getSource();
+            const dashboardObject = raw.trim() ? JSON.parse(raw) : {};
+            this._postMessage('galyleo:loadContent', {
+              content: dashboardObject
+            });
+          });
+        }
       },
-      'galyleo:setDirty': (evt: MessageEvent) => {
-        this._iframe.contentWindow?.postMessage(
-          { method: 'galyleo:save', path: 'foo' },
-          '*'
-        );
+
+      'galyleo:contentChanged': async (evt: MessageEvent) => {
+        const { payload } = evt.data;
+        this._model.fromJSON(payload.content);
+        // We can delete this at a later time and require a separate save
+        await this._context.save();
+        this._postMessage('galyleo:saveSuccess');
       },
-      'galyleo:ready': (evt: MessageEvent) => {
-        // const jsonString = _getJSONForm(this._model.toString());
-        const savedForm = this._model.toJSON();
-        this._iframe.contentWindow?.postMessage(
-          { method: 'galyleo:load', savedForm: savedForm },
-          '*'
-        );
-      },
-      'galyleo:requestSave': async (evt: MessageEvent) => {
-        // await this._model.context.save();
+
+      'galyleo:requestSave': async () => {
+        await this._context.save();
+        this._postMessage('galyleo:saveSuccess');
       }
     };
 
-    window.addEventListener('message', evt => {
-      const method = evt.data.method as keyof typeof handlers;
-      if (method in handlers) {
-        handlers[method](evt);
+    return (evt: MessageEvent) => {
+      const { type, instanceId } = evt.data;
+      if (this._instanceId === instanceId) {
+        if (type in handlers) {
+          handlers[type](evt);
+        } else {
+          console.warn(`Unknown message type received: ${type}`);
+        }
       }
-    });
+    };
   }
-  /**
-   * Instruct the editor to load a GalyleoTable.
-   * @param table : the GalyleoTable to load (JSON structure)
-   */
-  loadTable(table: any): void {
-    // Send the table to the iframe using postMessage
+
+  private _postMessage(type: string, payload: any = {}): void {
     this._iframe.contentWindow?.postMessage(
-      { method: 'galyleo:loadTable', table },
+      { type, payload, instanceId: this._instanceId },
       '*'
     );
   }
@@ -137,12 +160,11 @@ export class GalyleoPanel extends IFrame {
    * to changes on shared model's content.
    */
   private _onContentChanged = (): void => {
-    // You can use _getJSONForm(this._model.content) to transform the model content
-    // const jsonString = _getJSONForm(this._model.content);
-    // This would normally send the content to the iframe:
-    // this._iframe.contentWindow?.postMessage(
-    //   { method: 'galyleo:load', jsonString: jsonString },
-    //   '*'
-    // );
+    // Currently a no-op.  BUT this will be called when the content is changed
+    // by the Galyleo editor, so take care to avoid message loops.
+    // The only case where this would do anything is where a user is simultaneously
+    // editing a dashboard in a text editor and in this editor, or has two
+    // different editors open on the same file.
+    // Not implemented because this is a rare case and avoiding message loops takes some care
   };
 }

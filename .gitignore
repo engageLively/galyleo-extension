@@ -130,3 +130,7 @@ untitled6.gd.json
 galyleo_extension/galyleo-editor.tar.gz
 /galyleo_extension/__temp_extract__
 /galyleo_extension/static
+bar.json
+/docker-build/static
+tmp/bar.gd.json
+/tmp
