@@ -30,7 +30,8 @@ export class GalyleoPanel extends IFrame {
       sandbox: [
         'allow-scripts',
         'allow-storage-access-by-user-activation',
-        'allow-same-origin'
+        'allow-same-origin',
+        'allow-popups'
       ],
       referrerPolicy: 'no-referrer'
     });
