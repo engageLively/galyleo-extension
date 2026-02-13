@@ -19,7 +19,7 @@ COPY static/ ${GALYLEO_ASSET_DIR}/
 
 # Switch to non-root user for runtime safety
 
-RUN python3 -m pip install --no-cache-dir --upgrade -i https://test.pypi.org/simple/ galyleo-extension==0.1.19
+RUN python3 -m pip install --no-cache-dir --upgrade -i https://test.pypi.org/simple/ galyleo-extension==0.1.21
 
 RUN jupyter server extension enable --sys-prefix galyleo_extension
 

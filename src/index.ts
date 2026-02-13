@@ -19,7 +19,7 @@ import { Menu } from '@lumino/widgets';
 import { ITranslator } from '@jupyterlab/translation';
 import { IFileBrowserFactory } from '@jupyterlab/filebrowser';
 
-export const mainAreaIframe = (url: string, label: string, id: string) => {
+export const mainAreaIframe = (url: string, label: string, id: string): any => {
   const iframe: IFrame = new IFrame({
     sandbox: [
       'allow-downloads',
@@ -111,6 +111,50 @@ async function fetchEnvVars(): Promise<Record<string, string>> {
 
   return await response.json();
 }
+
+// Replace your existing downloadTutorial function with this:
+const downloadTutorial = async (
+  app: JupyterFrontEnd,
+  browserFactory: IFileBrowserFactory, // Keeping this signature for compatibility
+  fileName: string,
+  url: string
+) => {
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      console.error('Failed to fetch tutorial:', response.statusText);
+      return;
+    }
+
+    // CHECK EXTENSION: Is it HTML or Notebook?
+    if (fileName.endsWith('.html')) {
+      // --- HTML MODE ---
+      const content = await response.text(); // Read as raw text
+      await app.serviceManager.contents.save(fileName, {
+        type: 'file',
+        format: 'text',
+        content: content
+      });
+      // Open with the HTML Viewer factory explicitly
+      await app.commands.execute('docmanager:open', {
+        path: fileName,
+        factory: 'HTML Viewer'
+      });
+    } else {
+      // --- NOTEBOOK MODE (Default) ---
+      const content = await response.json(); // Read as JSON
+      await app.serviceManager.contents.save(fileName, {
+        type: 'notebook',
+        content: content
+      });
+      await app.commands.execute('docmanager:open', { path: fileName });
+    }
+  } catch (error) {
+    console.error('Error loading tutorial:', error);
+    // Optional: Show an error dialog to the user
+    // showErrorMessage('Tutorial Error', error);
+  }
+};
 
 /**
  * Initialization data for the galyleo_extension extension.
@@ -260,12 +304,54 @@ const plugin: JupyterFrontEndPlugin<void> = {
         app.shell.add(helpWidget);
       }
     });
+    // Inside activate function...
+
+    const OPEN_TUTORIAL = 'galyleo:open-tutorial';
+
+    commands.addCommand(OPEN_TUTORIAL, {
+      label: args => args['label'] as string,
+      execute: async args => {
+        const name = args['name'] as string;
+        const url = args['url'] as string;
+        try {
+          await downloadTutorial(app, browserFactory, name, url);
+        } catch (err) {
+          console.error(`Error loading tutorial: ${err}`);
+        }
+      }
+    });
+
+    // Create the Tutorials Sub-menu
+    const tutorialMenu = new Menu({ commands: app.commands });
+    tutorialMenu.title.label = 'Tutorials';
+
+    // 4. Set up our specific "Collapsed" Tutorial 1
+    const tutorials = [
+      {
+        name: 'RapidInfiltration.ipynb',
+        label: '1. Rapid Data Infiltration (Global Weather)',
+        url: 'https://raw.githubusercontent.com/engageLively/galyleo-examples/galyleo-2/fast-tutorial/publish-data.ipynb'
+      },
+      {
+        name: '2_Build_Dashboard.html',
+        label: '2. Design Dashboard',
+        url: 'https://raw.githubusercontent.com/engageLively/galyleo-examples/galyleo-2/fast-tutorial/dashboard_tutorial.html'
+      }
+    ];
+
+    // 5. Build the menu items
+    tutorials.forEach(t => {
+      tutorialMenu.addItem({
+        command: OPEN_TUTORIAL,
+        args: { name: t.name, label: t.label, url: t.url }
+      });
+    });
+
+    
 
     // Add to File menu
     mainMenu.fileMenu.newMenu.addGroup([{ command: CREATE_NEW }], 30);
     mainMenu.fileMenu.addGroup([{ command: CREATE_NEW }], 30);
-    mainMenu.fileMenu.addGroup([{ command: OPEN_EXISTING }], 40);
-    mainMenu.fileMenu.addGroup([{ command: SAVE_ACTIVE }], 50);
     mainMenu.helpMenu.addGroup([{ command: OPEN_HELP }], 50);
 
     const galyleoMenu: Menu = new Menu({ commands: app.commands });
@@ -275,8 +361,10 @@ const plugin: JupyterFrontEndPlugin<void> = {
     galyleoMenu.addItem({ command: SAVE_ACTIVE });
     galyleoMenu.addItem({ command: OPEN_HELP });
     galyleoMenu.addItem({ command: GALYLEO_SERVICE });
+    // Add the Sub-menu to your existing Galyleo Menu
+    galyleoMenu.addItem({ type: 'submenu', submenu: tutorialMenu });
 
-    mainMenu.addMenu(galyleoMenu);
+    mainMenu.addMenu(galyleoMenu as any);
 
     // Add to Command Palette
     palette.addItem({ command: CREATE_NEW, category: 'Galyleo' });
