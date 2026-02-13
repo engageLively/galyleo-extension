@@ -134,3 +134,6 @@ bar.json
 /docker-build/static
 tmp/bar.gd.json
 /tmp
+
+2_Build_Dashboard.html
+RapidInfiltration.ipynb
