@@ -61,6 +61,7 @@
         "@jupyterlab/filebrowser": "^4.4.3",
         "@jupyterlab/launcher": "^4.4.3",
         "@jupyterlab/mainmenu": "^4.4.3",
+        "@jupyterlab/settingregistry": "^4.4.3",
         "@jupyterlab/ui-components": "^4.4.3",
         "@lumino/messaging": "2.0.3",
         "@lumino/widgets": "2.7.1",
@@ -101,7 +102,8 @@
     },
     "jupyterlab": {
         "extension": true,
-        "outputDir": "galyleo_extension/labextension"
+        "outputDir": "galyleo_extension/labextension",
+        "schemaDir": "schema"
     },
     "eslintIgnore": [
         "node_modules",

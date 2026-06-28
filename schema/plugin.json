@@ -1,0 +1,27 @@
+{
+  "title": "Galyleo Extension",
+  "description": "Settings for the Galyleo Dashboard Editor extension.",
+  "type": "object",
+  "properties": {
+    "studioURL": {
+      "title": "Studio URL",
+      "description": "URL of the Galyleo editor page. Defaults to the hosted editor on GitHub Pages. Override for self-hosted or local dev.",
+      "type": "string",
+      "default": "https://engagelively.github.io/galyleo-dashboard/"
+    },
+    "publishServer": {
+      "title": "Publish Server",
+      "description": "Base URL of the Galyleo publish / SDTP server.",
+      "type": "string",
+      "default": ""
+    },
+    "tableServers": {
+      "title": "Table Servers",
+      "description": "List of SDTP table server base URLs available in the editor. If empty, publishServer is used as the sole table server.",
+      "type": "array",
+      "items": { "type": "string" },
+      "default": ["http://localhost:5000"]
+    }
+  },
+  "additionalProperties": false
+}

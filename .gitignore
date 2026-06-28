@@ -8,6 +8,11 @@ node_modules/
 .ipynb_checkpoints
 *.tsbuildinfo
 galyleo_extension/labextension
+*.gd.json
+*.gd
+.Trash-*/
+foo.txt
+package-lock.json
 # Version file is handled by hatchling
 galyleo_extension/_version.py
 

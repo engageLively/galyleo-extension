@@ -11,8 +11,8 @@ import {
   DocumentRegistry,
   DocumentWidget
 } from '@jupyterlab/docregistry';
+import { ISettingRegistry } from '@jupyterlab/settingregistry';
 import { GalyleoPanel } from './widget';
-// import type { IFileType } from '@jupyterlab/rendermime-interaces';
 import { LabIcon, IFrame } from '@jupyterlab/ui-components';
 import { PageConfig } from '@jupyterlab/coreutils';
 import { Menu } from '@lumino/widgets';
@@ -41,31 +41,45 @@ export const mainAreaIframe = (url: string, label: string, id: string): any => {
   return widget;
 };
 
-// In production, galyleoServiceURL will ALWAYS end in /services/galyleo
-
 export class GalyleoURLFactory {
   private _translator: ITranslator;
-  private _serviceURL: string;
-  constructor(_translator: ITranslator) {
-    this._translator = _translator;
-    this._serviceURL = 'http://localhost:9999/services/galyleo';
+
+  /** Configured studio URL — empty means use the bundled editor. */
+  studioURL = '';
+  /** Base URL of the publish / SDTP server. */
+  publishServer = '';
+  /** Additional SDTP table server URLs. */
+  tableServers: string[] = [];
+
+  constructor(translator: ITranslator) {
+    this._translator = translator;
   }
-  get studioURL(): string {
-    const studio: string =
+
+  /** The bundled editor URL served by JupyterLab. */
+  get builtinStudioURL(): string {
+    const studio =
       this._translator.languageCode === 'ja_JP' ? 'studio-jp' : 'studio-en';
     return PageConfig.getBaseUrl() + studio + '/index.html';
   }
-  get galyleoServiceURL(): string {
-    return this._serviceURL;
+
+  /** Effective studio URL: configured value or built-in fallback. */
+  get resolvedStudioURL(): string {
+    return this.studioURL.trim() || this.builtinStudioURL;
   }
-  set galyleoServiceURL(serviceURL: string) {
-    this._serviceURL = serviceURL;
+
+  /**
+   * Effective table server list.
+   * Falls back to [publishServer] when no explicit servers are configured.
+   */
+  get resolvedTableServers(): string[] {
+    if (this.tableServers.length > 0) return this.tableServers;
+    if (this.publishServer.trim()) return [this.publishServer.trim()];
+    return [];
   }
 }
 
 export let galyleoURLFactory: GalyleoURLFactory;
 
-// The icon for the desktop
 export const galyleoIcon = new LabIcon({
   name: 'Galyleopkg:galyleo',
   svgstr:
@@ -86,36 +100,40 @@ export class GalyleoPanelFactory extends ABCWidgetFactory<
   DocumentWidget<GalyleoPanel>,
   DocumentModel
 > {
+  private _serviceManager: any;
+
+  constructor(options: any, serviceManager: any) {
+    super(options);
+    this._serviceManager = serviceManager;
+  }
+
   protected createNewWidget(
     context: DocumentRegistry.Context
   ): DocumentWidget<GalyleoPanel> {
     const modelContext = context as DocumentRegistry.IContext<DocumentModel>;
-    const content = new GalyleoPanel(modelContext);
+    const content = new GalyleoPanel(modelContext, this._serviceManager);
     const widget = new DocumentWidget({ content, context });
     return widget;
   }
 }
 
-// Example: fetch environment variables from <foo>/env
 async function fetchEnvVars(): Promise<Record<string, string>> {
-  const baseUrl = PageConfig.getBaseUrl(); // e.g., "https://myserver.org/jupyter/"
-  const response = await fetch(`${baseUrl}env`, {
-    method: 'GET',
-    credentials: 'same-origin'
-  });
-
-  if (!response.ok) {
-    console.error('Failed to load environment variables');
+  const baseUrl = PageConfig.getBaseUrl();
+  try {
+    const response = await fetch(`${baseUrl}env`, {
+      method: 'GET',
+      credentials: 'same-origin'
+    });
+    if (!response.ok) return {};
+    return await response.json();
+  } catch {
     return {};
   }
-
-  return await response.json();
 }
 
-// Replace your existing downloadTutorial function with this:
 const downloadTutorial = async (
   app: JupyterFrontEnd,
-  browserFactory: IFileBrowserFactory, // Keeping this signature for compatibility
+  browserFactory: IFileBrowserFactory,
   fileName: string,
   url: string
 ) => {
@@ -125,24 +143,19 @@ const downloadTutorial = async (
       console.error('Failed to fetch tutorial:', response.statusText);
       return;
     }
-
-    // CHECK EXTENSION: Is it HTML or Notebook?
     if (fileName.endsWith('.html')) {
-      // --- HTML MODE ---
-      const content = await response.text(); // Read as raw text
+      const content = await response.text();
       await app.serviceManager.contents.save(fileName, {
         type: 'file',
         format: 'text',
         content: content
       });
-      // Open with the HTML Viewer factory explicitly
       await app.commands.execute('docmanager:open', {
         path: fileName,
         factory: 'HTML Viewer'
       });
     } else {
-      // --- NOTEBOOK MODE (Default) ---
-      const content = await response.json(); // Read as JSON
+      const content = await response.json();
       await app.serviceManager.contents.save(fileName, {
         type: 'notebook',
         content: content
@@ -151,24 +164,22 @@ const downloadTutorial = async (
     }
   } catch (error) {
     console.error('Error loading tutorial:', error);
-    // Optional: Show an error dialog to the user
-    // showErrorMessage('Tutorial Error', error);
   }
 };
 
-/**
- * Initialization data for the galyleo_extension extension.
- */
+const PLUGIN_ID = 'galyleo_extension:plugin';
+
 const plugin: JupyterFrontEndPlugin<void> = {
-  id: 'galyleo_extension:plugin',
-  description: 'A fast test of reading a file and displaying it',
+  id: PLUGIN_ID,
+  description: 'Galyleo Dashboard Editor for JupyterLab',
   autoStart: true,
   requires: [
     ICommandPalette,
     IMainMenu,
     ILauncher,
     ITranslator,
-    IFileBrowserFactory
+    IFileBrowserFactory,
+    ISettingRegistry
   ],
   activate: (
     app: JupyterFrontEnd,
@@ -176,70 +187,69 @@ const plugin: JupyterFrontEndPlugin<void> = {
     mainMenu: IMainMenu,
     launcher: ILauncher,
     translator: ITranslator,
-    browserFactory: IFileBrowserFactory
+    browserFactory: IFileBrowserFactory,
+    settingRegistry: ISettingRegistry
   ) => {
     galyleoURLFactory = new GalyleoURLFactory(translator);
     console.log('JupyterLab extension galyleo_extension is activated!');
-    // Get the query string from the current URL
-    // const urlParams = new URLSearchParams(window.location.search);
 
-    // Retrieve the value of the 'galyleoServer' parameter
-    // const galyleoServer = urlParams.get('galyleoServer');
-    // if (galyleoServer) {
-    //   galyleoURLFactory.rootURL = galyleoServer;
-    // }
-    // Log or use the value
-    fetchEnvVars().then(envVars => {
-      const galyleoServer: string = envVars['galyleoServer'];
-      console.log(`Server is ${galyleoServer}`);
-      if (galyleoServer) {
-        galyleoURLFactory.galyleoServiceURL = galyleoServer;
-      }
-    });
+    // Load settings; fall back to env var if settings unavailable or publishServer unset
+    settingRegistry.load(PLUGIN_ID).then(settings => {
+      const applySettings = () => {
+        galyleoURLFactory.studioURL =
+          (settings.get('studioURL').composite as string) ?? '';
+        galyleoURLFactory.publishServer =
+          (settings.get('publishServer').composite as string) ?? '';
+        galyleoURLFactory.tableServers =
+          (settings.get('tableServers').composite as string[]) ?? [];
+        if (!galyleoURLFactory.publishServer) applyEnvVarFallback();
+      };
+      applySettings();
+      settings.changed.connect(applySettings);
+    }).catch(applyEnvVarFallback);
+
+    function applyEnvVarFallback() {
+      fetchEnvVars().then(envVars => {
+        const galyleoServer = envVars['galyleoServer'];
+        if (galyleoServer && !galyleoURLFactory.publishServer) {
+          galyleoURLFactory.publishServer = galyleoServer;
+        }
+      });
+    }
 
     const { commands, serviceManager } = app;
     const fileBrowser = browserFactory.tracker.currentWidget;
-
     const galyleoType = galyleoFileType;
 
-    // Register file type
     app.docRegistry.addFileType(galyleoType);
 
-    // Register widget factory
     const galyleoPanelFactory = new GalyleoPanelFactory({
       name: 'Galyleo Editor',
       fileTypes: [galyleoType.name],
       defaultFor: [galyleoType.name]
-    });
+    }, app.serviceManager);
     app.docRegistry.addWidgetFactory(galyleoPanelFactory);
 
-    // Command IDs
     const CREATE_NEW = 'galyleo:create-new';
     const OPEN_EXISTING = 'galyleo:open-existing';
     const SAVE_ACTIVE = 'galyleo:save-active';
-
     const fileTypeExtension = galyleoType.extensions[0];
 
-    // Commands
-
-    // 1. Create new Galyleo file
     commands.addCommand(CREATE_NEW, {
       label: 'New Galyleo Dashboard',
       caption: 'Create a new Galyleo dashboard',
       icon: galyleoIcon,
       execute: async () => {
-        const fileOptions = {
+        const model = await serviceManager.contents.newUntitled({
           type: 'file',
           ext: fileTypeExtension,
           path: fileBrowser?.model.path
-        };
-        const model = await serviceManager.contents.newUntitled(fileOptions);
+        });
         await serviceManager.contents.save(model.path, {
           type: 'file',
           format: 'text',
           content: '{}'
         });
-
         await commands.execute('docmanager:open', {
           path: model.path,
           factory: 'Galyleo Editor'
@@ -247,7 +257,6 @@ const plugin: JupyterFrontEndPlugin<void> = {
       }
     });
 
-    // 2. Open existing Galyleo file
     commands.addCommand(OPEN_EXISTING, {
       label: 'Open Galyleo Document...',
       caption: 'Open an existing Galyleo document',
@@ -257,7 +266,6 @@ const plugin: JupyterFrontEndPlugin<void> = {
       }
     });
 
-    // 3. Save current Galyleo file
     commands.addCommand(SAVE_ACTIVE, {
       label: 'Save Galyleo Document',
       caption: 'Save the current Galyleo document',
@@ -274,58 +282,56 @@ const plugin: JupyterFrontEndPlugin<void> = {
     });
 
     const GALYLEO_SERVICE = 'galyleo:open-service';
-
     commands.addCommand(GALYLEO_SERVICE, {
       label: 'Galyleo Service',
       caption: 'Open the Galyleo Service',
       icon: galyleoIcon,
       execute: async () => {
-        const helpWidget: MainAreaWidget = mainAreaIframe(
-          `${galyleoURLFactory.galyleoServiceURL}/greeting`,
-          'Galyleo Service',
-          'widget:service'
+        app.shell.add(
+          mainAreaIframe(
+            `${galyleoURLFactory.publishServer}/greeting`,
+            'Galyleo Service',
+            'widget:service'
+          )
         );
-        app.shell.add(helpWidget);
       }
     });
 
     const OPEN_HELP = 'galyleo:open-help';
-
     commands.addCommand(OPEN_HELP, {
       label: 'Galyleo Help',
       caption: 'Open the Galyleo Help page',
       icon: galyleoIcon,
       execute: async () => {
-        const helpWidget: MainAreaWidget = mainAreaIframe(
-          'https://galyleo-user-docs.readthedocs.io/en/latest/index.html',
-          'Galyleo Help',
-          'widget:help'
+        app.shell.add(
+          mainAreaIframe(
+            'https://galyleo-user-docs.readthedocs.io/en/latest/index.html',
+            'Galyleo Help',
+            'widget:help'
+          )
         );
-        app.shell.add(helpWidget);
       }
     });
-    // Inside activate function...
 
     const OPEN_TUTORIAL = 'galyleo:open-tutorial';
-
     commands.addCommand(OPEN_TUTORIAL, {
       label: args => args['label'] as string,
       execute: async args => {
-        const name = args['name'] as string;
-        const url = args['url'] as string;
         try {
-          await downloadTutorial(app, browserFactory, name, url);
+          await downloadTutorial(
+            app,
+            browserFactory,
+            args['name'] as string,
+            args['url'] as string
+          );
         } catch (err) {
           console.error(`Error loading tutorial: ${err}`);
         }
       }
     });
 
-    // Create the Tutorials Sub-menu
     const tutorialMenu = new Menu({ commands: app.commands });
     tutorialMenu.title.label = 'Tutorials';
-
-    // 4. Set up our specific "Collapsed" Tutorial 1
     const tutorials = [
       {
         name: 'RapidInfiltration.ipynb',
@@ -338,8 +344,6 @@ const plugin: JupyterFrontEndPlugin<void> = {
         url: 'https://raw.githubusercontent.com/engageLively/galyleo-examples/galyleo-2/fast-tutorial/dashboard_tutorial.html'
       }
     ];
-
-    // 5. Build the menu items
     tutorials.forEach(t => {
       tutorialMenu.addItem({
         command: OPEN_TUTORIAL,
@@ -347,9 +351,6 @@ const plugin: JupyterFrontEndPlugin<void> = {
       });
     });
 
-    
-
-    // Add to File menu
     mainMenu.fileMenu.newMenu.addGroup([{ command: CREATE_NEW }], 30);
     mainMenu.fileMenu.addGroup([{ command: CREATE_NEW }], 30);
     mainMenu.helpMenu.addGroup([{ command: OPEN_HELP }], 50);
@@ -361,22 +362,15 @@ const plugin: JupyterFrontEndPlugin<void> = {
     galyleoMenu.addItem({ command: SAVE_ACTIVE });
     galyleoMenu.addItem({ command: OPEN_HELP });
     galyleoMenu.addItem({ command: GALYLEO_SERVICE });
-    // Add the Sub-menu to your existing Galyleo Menu
     galyleoMenu.addItem({ type: 'submenu', submenu: tutorialMenu });
-
     mainMenu.addMenu(galyleoMenu as any);
 
-    // Add to Command Palette
     palette.addItem({ command: CREATE_NEW, category: 'Galyleo' });
     palette.addItem({ command: OPEN_EXISTING, category: 'Galyleo' });
     palette.addItem({ command: SAVE_ACTIVE, category: 'Galyleo' });
     palette.addItem({ command: OPEN_HELP, category: 'Galyleo' });
 
-    launcher.add({
-      command: CREATE_NEW,
-      category: 'Other',
-      rank: 1
-    });
+    launcher.add({ command: CREATE_NEW, category: 'Other', rank: 1 });
   }
 };
 

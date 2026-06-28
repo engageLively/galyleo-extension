@@ -1,65 +1,70 @@
 import { DocumentModel } from '@jupyterlab/docregistry';
-
-// import { IContext } from '@jupyterlab/docregistry';
-
 import { IFrame } from '@jupyterlab/apputils';
 import { Signal } from '@lumino/signaling';
 import { DocumentRegistry } from '@jupyterlab/docregistry';
-import { galyleoURLFactory } from './index'; // Assuming the URL factory is in a separate file
-import { Message } from '@lumino/messaging';
-
-// In GalyleoPanel.ts
-/* 
-// Assuming _getJSONForm is just a utility to convert the model content to JSON string form.
-function _getJSONForm(content: any): string {
-  // Example transformation; adjust according to your model's structure.
-  return JSON.stringify(content);
-}
-*/
+import { ServiceManager } from '@jupyterlab/services';
+import { galyleoURLFactory } from './index';
 
 export class GalyleoPanel extends IFrame {
   private _iframe: HTMLIFrameElement;
   private _model: DocumentModel;
   private _context: DocumentRegistry.IContext<DocumentModel>;
+  private _serviceManager: ServiceManager.IManager;
   private _instanceId: string;
   private _messageListener: (event: MessageEvent) => void;
   private _isReady: boolean = false;
 
-  constructor(context: DocumentRegistry.IContext<DocumentModel>) {
+  constructor(context: DocumentRegistry.IContext<DocumentModel>, serviceManager: ServiceManager.IManager) {
     super({
       sandbox: [
         'allow-scripts',
-        'allow-storage-access-by-user-activation',
         'allow-same-origin',
-        'allow-popups'
+        'allow-popups',
+        'allow-forms',
+        'allow-downloads',
+        'allow-modals'
       ],
       referrerPolicy: 'no-referrer'
     });
-    context.ready.then(_ => {
-      this._isReady = true;
-      this._model.contentChanged.connect(this._onContentChanged);
-      this._onContentChanged();
-      this.update(); // <- this is safe because Widget defines it
-    });
+
+    // Also set directly on the inner iframe element to be sure
+    const iframeEl = this.node.querySelector('iframe');
+    if (iframeEl) {
+      iframeEl.setAttribute(
+        'sandbox',
+        'allow-scripts allow-same-origin allow-popups allow-forms allow-downloads allow-modals'
+      );
+    }
+    this._iframe = (iframeEl ?? this.node) as HTMLIFrameElement;
+
+    this._instanceId = window.crypto.randomUUID();
+    this._model = context.model;
+    this._context = context;
+    this._serviceManager = serviceManager;
 
     this._messageListener = this._createMessageListener();
     window.addEventListener('message', this._messageListener);
-    // Access the iframe from the node after attach
-    this._iframe = this.node.querySelector('iframe')! as HTMLIFrameElement;
-    const studioURL: string = galyleoURLFactory.studioURL;
-    this._instanceId = window.crypto.randomUUID();
-    const publishString: string = `galyleo_server=${encodeURIComponent(
-      galyleoURLFactory.galyleoServiceURL
-    )}`;
-    const paramString: string = `instanceId=${
-      this._instanceId
-    }&inJupyterLab=true&${publishString}&studioServer=${encodeURIComponent(
-      studioURL
-    )}`;
-    const url = `${studioURL}?${paramString}`;
-    this._iframe.src = url;
-    this._model = context.model;
-    this._context = context;
+
+    context.ready.then(() => {
+      this._isReady = true;
+      this._model.contentChanged.connect(this._onContentChanged);
+    });
+
+    // Defer src until the microtask queue drains so settingRegistry.load()
+    // has time to populate galyleoURLFactory before we read it.
+    Promise.resolve().then(() => {
+      const studioURL = galyleoURLFactory.resolvedStudioURL;
+      const params = new URLSearchParams();
+      params.set('instanceId', this._instanceId);
+      params.set('mode', 'edit');
+      if (galyleoURLFactory.publishServer) {
+        params.set('galyleo_server', galyleoURLFactory.publishServer);
+      }
+      for (const ts of galyleoURLFactory.resolvedTableServers) {
+        params.append('table_server', ts);
+      }
+      this._iframe.src = `${studioURL}?${params.toString()}`;
+    });
   }
 
   /**
@@ -73,18 +78,6 @@ export class GalyleoPanel extends IFrame {
     window.removeEventListener('message', this._messageListener);
     Signal.clearData(this);
     super.dispose();
-  }
-
-  /**
-   * Handle `after-attach` messages sent to the widget.
-   *
-   * @param msg Widget layout message
-   */
-  protected onAfterAttach(msg: Message): void {
-    super.onAfterAttach(msg);
-    // Now you can safely access `this.node`
-    // Optionally log to ensure it's being accessed
-    console.log(this.node); // Or you can access `this.node.querySelector('iframe')` here
   }
 
   /**
@@ -114,8 +107,9 @@ export class GalyleoPanel extends IFrame {
 
       'galyleo:contentChanged': async (evt: MessageEvent) => {
         const { payload } = evt.data;
-        this._model.fromJSON(payload.content);
-        // We can delete this at a later time and require a separate save
+        this._model.sharedModel.setSource(
+          JSON.stringify(payload.content, null, 2)
+        );
         await this._context.save();
         this._postMessage('galyleo:saveSuccess');
       },
@@ -123,6 +117,30 @@ export class GalyleoPanel extends IFrame {
       'galyleo:requestSave': async () => {
         await this._context.save();
         this._postMessage('galyleo:saveSuccess');
+      },
+
+      'galyleo:openFile': async (evt: MessageEvent) => {
+        const { payload } = evt.data;
+        if (!payload?.path) return;
+        try {
+          const file = await this._serviceManager.contents.get(payload.path, { content: true });
+          const dashboardObject = file.content ? JSON.parse(file.content as string) : {};
+          this._postMessage('galyleo:loadContent', { content: dashboardObject });
+        } catch (err) {
+          console.error('galyleo:openFile failed:', err);
+        }
+      },
+
+      'galyleo:listDashboards': async () => {
+        try {
+          const listing = await this._serviceManager.contents.get('', { content: true });
+          const dashboards = (listing.content as any[])
+            .filter((f: any) => f.type === 'file' && f.name.endsWith('.gd.json'))
+            .map((f: any) => ({ name: f.name, path: f.path }));
+          this._postMessage('galyleo:dashboardList', { dashboards });
+        } catch {
+          this._postMessage('galyleo:dashboardList', { dashboards: [] });
+        }
       }
     };
 
