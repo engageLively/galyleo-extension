@@ -193,29 +193,29 @@ const plugin: JupyterFrontEndPlugin<void> = {
     galyleoURLFactory = new GalyleoURLFactory(translator);
     console.log('JupyterLab extension galyleo_extension is activated!');
 
-    // Load settings; fall back to env var if settings unavailable or publishServer unset
+    // publishServer is a deployment concern (Hub URL + /services/galyleo, or
+    // the in-cluster service URL) — it is never a per-user preference, so it
+    // is always taken from the server-provided /env endpoint, not from
+    // persisted JupyterLab settings. A stale per-user setting must never be
+    // able to shadow the value the deployment actually wants.
+    fetchEnvVars().then(envVars => {
+      const galyleoServer = envVars['galyleoServer'];
+      if (galyleoServer) {
+        galyleoURLFactory.publishServer = galyleoServer;
+      }
+    });
+
+    // studioURL / tableServers remain genuine user-editable preferences.
     settingRegistry.load(PLUGIN_ID).then(settings => {
       const applySettings = () => {
         galyleoURLFactory.studioURL =
           (settings.get('studioURL').composite as string) ?? '';
-        galyleoURLFactory.publishServer =
-          (settings.get('publishServer').composite as string) ?? '';
         galyleoURLFactory.tableServers =
           (settings.get('tableServers').composite as string[]) ?? [];
-        if (!galyleoURLFactory.publishServer) applyEnvVarFallback();
       };
       applySettings();
       settings.changed.connect(applySettings);
-    }).catch(applyEnvVarFallback);
-
-    function applyEnvVarFallback() {
-      fetchEnvVars().then(envVars => {
-        const galyleoServer = envVars['galyleoServer'];
-        if (galyleoServer && !galyleoURLFactory.publishServer) {
-          galyleoURLFactory.publishServer = galyleoServer;
-        }
-      });
-    }
+    });
 
     const { commands, serviceManager } = app;
     const fileBrowser = browserFactory.tracker.currentWidget;
