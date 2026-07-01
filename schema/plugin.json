@@ -9,6 +9,12 @@
       "type": "string",
       "default": "https://engagelively.github.io/galyleo-dashboard/"
     },
+    "publishServer": {
+      "title": "Publish Server",
+      "description": "Override the Galyleo service URL. Leave empty to auto-detect from JupyterHub (recommended). Set explicitly only for standalone/non-Hub use (e.g. GALYLEO_SERVER env var not available).",
+      "type": "string",
+      "default": ""
+    },
     "tableServers": {
       "title": "Table Servers",
       "description": "List of SDTP table server base URLs available in the editor. If empty, publishServer is used as the sole table server.",

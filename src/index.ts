@@ -193,28 +193,36 @@ const plugin: JupyterFrontEndPlugin<void> = {
     galyleoURLFactory = new GalyleoURLFactory(translator);
     console.log('JupyterLab extension galyleo_extension is activated!');
 
-    // publishServer is a deployment concern (Hub URL + /services/galyleo, or
-    // the in-cluster service URL) — it is never a per-user preference, so it
-    // is always taken from the server-provided /env endpoint, not from
-    // persisted JupyterLab settings. A stale per-user setting must never be
-    // able to shadow the value the deployment actually wants.
-    fetchEnvVars().then(envVars => {
-      const galyleoServer = envVars['galyleoServer'];
-      if (galyleoServer) {
-        galyleoURLFactory.publishServer = galyleoServer;
-      }
-    });
-
-    // studioURL / tableServers remain genuine user-editable preferences.
+    // Resolve publishServer: manual setting override → /env endpoint → PageConfig derivation.
+    // The manual setting is an escape hatch for standalone/non-Hub use only.
     settingRegistry.load(PLUGIN_ID).then(settings => {
       const applySettings = () => {
         galyleoURLFactory.studioURL =
           (settings.get('studioURL').composite as string) ?? '';
         galyleoURLFactory.tableServers =
           (settings.get('tableServers').composite as string[]) ?? [];
+        const manualPublishServer =
+          (settings.get('publishServer').composite as string) ?? '';
+        if (manualPublishServer) {
+          galyleoURLFactory.publishServer = manualPublishServer;
+        } else {
+          fetchEnvVars().then(envVars => {
+            const galyleoServer = envVars['galyleoServer'];
+            if (galyleoServer) {
+              galyleoURLFactory.publishServer = galyleoServer;
+            } else {
+              const hubHost =
+                PageConfig.getOption('hubHost') || window.location.origin;
+              galyleoURLFactory.publishServer = `${hubHost}/services/galyleo`;
+            }
+          });
+        }
       };
       applySettings();
       settings.changed.connect(applySettings);
+    }).catch(() => {
+      const hubHost = PageConfig.getOption('hubHost') || window.location.origin;
+      galyleoURLFactory.publishServer = `${hubHost}/services/galyleo`;
     });
 
     const { commands, serviceManager } = app;
