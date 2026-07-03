@@ -32,13 +32,14 @@ class EnvVarHandler(APIHandler):
     def get(self):
         self.finish(json.dumps({
             "galyleoServer": self._get_services_url(),
+            "galyleoStudioURL": os.environ.get("GALYLEO_STUDIO_URL", ""),
             "host": self.request.host,
             "protocol": self.request.protocol,
             "base_url": self.settings['base_url'],
         }))
 
 
-def load_jupyter_server_extension(nbapp):
+def _load_jupyter_server_extension(nbapp):
     log = getattr(nbapp, "log", None)
 
     if not hasattr(nbapp, "web_app") or not hasattr(nbapp.web_app, "settings"):

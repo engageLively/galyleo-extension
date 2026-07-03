@@ -197,14 +197,13 @@ const plugin: JupyterFrontEndPlugin<void> = {
     // The manual setting is an escape hatch for standalone/non-Hub use only.
     settingRegistry.load(PLUGIN_ID).then(settings => {
       const applySettings = () => {
-        galyleoURLFactory.studioURL =
-          (settings.get('studioURL').composite as string) ?? '';
         galyleoURLFactory.tableServers =
           (settings.get('tableServers').composite as string[]) ?? [];
         const manualPublishServer =
           (settings.get('publishServer').composite as string) ?? '';
         if (manualPublishServer) {
           galyleoURLFactory.publishServer = manualPublishServer;
+          galyleoURLFactory.studioURL = (settings.default('studioURL') as string) ?? '';
         } else {
           fetchEnvVars().then(envVars => {
             const galyleoServer = envVars['galyleoServer'];
@@ -215,6 +214,8 @@ const plugin: JupyterFrontEndPlugin<void> = {
                 PageConfig.getOption('hubHost') || window.location.origin;
               galyleoURLFactory.publishServer = `${hubHost}/services/galyleo`;
             }
+            const studioURL = envVars['galyleoStudioURL'];
+            galyleoURLFactory.studioURL = (studioURL || (settings.default('studioURL') as string)) ?? '';
           });
         }
       };
