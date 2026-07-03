@@ -9,6 +9,34 @@ interactive dashboards and visualizations, with one-click publication to the web
 ## Requirements
 
 - JupyterLab >= 4.0.0
+- Jupyter Server >= 2.0 (uses `_load_jupyter_server_extension` API)
+
+## Server extension: `/env` endpoint
+
+The package also installs a Jupyter Server extension that exposes a single endpoint:
+
+```
+GET {base_url}/env
+```
+
+Response:
+```json
+{
+  "galyleoServer": "https://hub.example.com/services/galyleo",
+  "galyleoStudioURL": "https://hub.example.com/services/galyleo/static/studio/",
+  "host": "hub.example.com",
+  "protocol": "https",
+  "base_url": "/user/alice/"
+}
+```
+
+The JupyterLab frontend calls this at startup to locate the galyleo service and the React
+editor. `galyleoStudioURL` is injected into the singleuser pod as `GALYLEO_STUDIO_URL` via
+the JupyterHub Helm config — this is how the deployment controls which editor URL is used.
+
+The extension is auto-enabled via
+`jupyter_config/jupyter_server_config.d/galyleo_extension.json`, which is included in the
+wheel. No manual `jupyter server extension enable` step is needed after `pip install`.
 
 ## Install
 
